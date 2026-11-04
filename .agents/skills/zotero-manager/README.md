@@ -53,9 +53,11 @@ A remote/cloud helper cannot reach the Zotero instance on your computer through 
 
 Ask Codex:
 
-> Use $skill-installer to install only the zotero-manager skill from repository hi-ashutosh/zotero-manager-plugins, ref feat/zotero-manager, path plugins/zotero/skills/zotero-manager. Preserve any existing installation until you have checked it.
+> Use $skill-installer to install only the zotero-manager skill from repository hi-ashutosh/zotero-manager-plugins, ref feat/zotero-manager, path .agents/skills/zotero-manager. Preserve any existing installation until you have checked it.
 
 The explicit ref matters because the branch name contains a slash. Install the **whole skill folder**, including its scripts and references; copying only `SKILL.md` is insufficient. This local-skill route does not require installing every plugin in the repository. OpenAI documents installation from other repositories through the skill installer; if the skill does not appear after installation, restart Codex. [Official OpenAI skill documentation](https://learn.chatgpt.com/docs/build-skills).
+
+In the desktop app, type `@` and search for **Zotero Manager**. For a development checkout, point the user skill link directly at `.agents/skills/zotero-manager` to use the original files without a copy. The old plugin-directory path remains a compatibility symlink.
 
 Invoke it explicitly as `$zotero-manager` to distinguish it from the original `$Zotero` skill. Each friend needs their own local Zotero setup and authorization; no credentials are distributed in this repository.
 
@@ -64,7 +66,7 @@ Invoke it explicitly as `$zotero-manager` to distinguish it from the original `$
 ```bash
 git clone --filter=blob:none --sparse --single-branch --branch feat/zotero-manager https://github.com/hi-ashutosh/zotero-manager-plugins.git
 cd zotero-manager-plugins
-git sparse-checkout set plugins/zotero
+git sparse-checkout set plugins/zotero .agents/skills/zotero-manager
 ```
 
 Cloning alone does not register a Codex skill. Use the installer above for Codex discovery, or register the whole skill folder using a local skill location supported by your Codex installation. For terminal use, no Codex registration is needed.
@@ -72,7 +74,7 @@ Cloning alone does not register a Codex skill. Use the installer above for Codex
 From the repository root, define this convenience function in a macOS/Linux shell:
 
 ```bash
-zm() { python3 plugins/zotero/skills/zotero-manager/scripts/zotero_manager.py "$@"; }
+zm() { python3 .agents/skills/zotero-manager/scripts/zotero_manager.py "$@"; }
 zm status --json
 ```
 
@@ -240,13 +242,13 @@ A skill installed as a copied folder does not follow later GitHub pushes automat
 Offline checks, from the repository root:
 
 ```bash
-python3 -B -m unittest discover -s plugins/zotero/skills/zotero-manager/tests -v
+python3 -B -m unittest discover -s .agents/skills/zotero-manager/tests -v
 ```
 
 The live harness creates and deletes marked temporary records/collections, generates temporary PDFs and uses the normal write key. Run it only when that test scope is authorized:
 
 ```bash
-python3 -B plugins/zotero/skills/zotero-manager/tests/live_smoke.py --apply
+python3 -B .agents/skills/zotero-manager/tests/live_smoke.py --apply
 ```
 
 Without `--apply`, the live harness exits without connecting or writing. It checks fixture markers before deletion and retains a report with any cleanup failures. The ordinary helper has no general delete command; test cleanup is narrowly implemented in this harness.

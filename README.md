@@ -4,16 +4,18 @@ This fork extends OpenAI's Zotero skill with executable library-management comma
 
 **The new features live on branch `feat/zotero-manager`.** The fork's `main` branch still contains the upstream baseline.
 
-- **[Start here: installation, features and usage guide](plugins/zotero/skills/zotero-manager/README.md)**
-- [Skill instructions](plugins/zotero/skills/zotero-manager/SKILL.md)
-- [Tested behavior and limitations](plugins/zotero/skills/zotero-manager/references/validation.md)
+- **[Start here: installation, features and usage guide](.agents/skills/zotero-manager/README.md)**
+- [Skill instructions](.agents/skills/zotero-manager/SKILL.md)
+- [Tested behavior and limitations](.agents/skills/zotero-manager/references/validation.md)
 - [Feature plan](plugins/zotero/docs/02-new-skill-features-and-priorities.md)
+
+The single source for Zotero Manager is `.agents/skills/zotero-manager/`. The old `plugins/zotero/skills/zotero-manager` path is a relative symbolic link to it. For local development, point your user-level skill link directly at `.agents/skills/zotero-manager` so edits take effect without copying files. In the desktop app, search for **Zotero Manager** in the `@` picker; restart the app if its list is stale. This layout avoids the desktop picker classifying the standalone skill under the older Zotero plugin and hiding it when that plugin is listed.
 
 In Codex, use `$zotero-manager` to select the extended skill. It talks to Zotero Desktop's local API; no screenshot or computer-control permission is needed. Writes require your task authorization and Zotero's own API authorization.
 
 Current validation: **29 offline tests and 21 live assertions**, tested on macOS with Zotero 10.0.7. PDF editing/highlighting, duplicate merging, stored-file uploads and bulk management are outside the implemented scope. See the guide for exact feature coverage.
 
-This repository is a fork of [openai/plugins](https://github.com/openai/plugins), which contains many unrelated plugin examples. Our changes are focused on `plugins/zotero`; installing Zotero Manager does not require installing those other plugins. No stable release or upstream pull request has been published.
+This repository is a fork of [openai/plugins](https://github.com/openai/plugins), which contains many unrelated plugin examples. Our changes are focused on `plugins/zotero` and `.agents/skills/zotero-manager`; installing Zotero Manager does not require installing those other plugins. No stable release or upstream pull request has been published.
 
 ## Upstream repository context
 
