@@ -116,6 +116,18 @@ class Tests(unittest.TestCase):
         self.assertEqual(len(journals), 1)
         self.assertEqual(len(json.loads(journals[0].read_text())['key']), 8)
 
+    def test_create_supplies_version_zero_for_client_generated_key(self):
+        state = {}
+        def save(method, path, payload, headers):
+            self.assertEqual(payload[0]['version'], 0)
+            self.assertIn('Zotero-Write-Token', headers)
+            state.update(payload[0])
+            return {'successful': {'0': {'key': state['key']}}, 'failed': {}}
+        self.c.write = save
+        self.c.get = lambda path: {'key': state['key'], 'version': 1, 'data': {**state, 'version': 1}}
+        result = self.c.create('items', {'itemType': 'book', 'title': 'New'}, True)
+        self.assertTrue(result['verified'])
+
     def test_template_uses_local_schema_without_web_only_endpoint(self):
         def schema(method, path):
             self.assertEqual(method, 'GET')

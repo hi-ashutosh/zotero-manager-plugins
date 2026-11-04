@@ -66,4 +66,4 @@ Official documentation confirms reads need no key when the local API is enabled.
 
 Zotero supports a child attachment pointing to a PDF at a user-chosen filesystem path. It references the original file rather than storing another copy; double-clicking the attachment opens it. The file must exist at the linked path. If moved or renamed later, its link needs updating. Zotero does not sync the linked file itself, and linked files are unavailable in group libraries. [Official attachment documentation](https://www.zotero.org/support/attaching_files)
 
-**Conclusion:** Zotero supports this workflow; the bundled helper has no linked-file command. The new starter contains an implementation, but its actual attachment-creation workflow has not been live-tested.
+**Conclusion:** Zotero supports this workflow; the bundled helper has no linked-file command. The new manager is separate from this bundled helper. Its linked-PDF creation workflow was successfully live-tested on disposable records on 2026-11-04.

@@ -158,7 +158,8 @@ class Client:
         import secrets
         object_key = ''.join(secrets.choice(alphabet) for _ in range(8))
         token = uuid.uuid4().hex
-        payload = {**data, 'key': object_key}
+        # A client-assigned key requires a version precondition, even for creates.
+        payload = {**data, 'key': object_key, 'version': 0}
         journal = self.journal({'operation': 'create', 'kind': kind, 'key': object_key,
                                 'writeToken': token, 'data': payload})
         result = self.write('POST', f'/{kind}', [payload], {'Zotero-Write-Token': token})
