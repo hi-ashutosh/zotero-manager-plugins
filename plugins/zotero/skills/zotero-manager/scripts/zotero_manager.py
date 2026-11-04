@@ -26,6 +26,20 @@ def key(value):
     return value
 
 
+def tag_name(value):
+    value = value.strip()
+    if not value:
+        raise ManagerError('Tag names cannot be blank')
+    return value
+
+
+def pdf_path(value):
+    file = Path(value).expanduser().resolve(strict=True)
+    if not file.is_file() or file.suffix.lower() != '.pdf':
+        raise ManagerError('Choose an existing PDF file')
+    return file
+
+
 def private_json(path, data):
     path = Path(path).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -134,14 +148,32 @@ class Client:
         payload = {**before, **changes} if method == 'PUT' else changes
         self.write(method, path, payload, {'If-Unmodified-Since-Version': str(current['version'])})
         actual = self.get(path)
-        self.verify(actual['data'], changes, backup)
-        return {'verified': True, 'key': object_key, 'data': actual['data'], 'backup': backup}
+        expected = dict(changes)
+        result = {'verified': True, 'key': object_key, 'data': actual['data'], 'backup': backup}
+        if before.get('linkMode') == 'linked_file' and 'path' in expected:
+            result['file_url'] = self.verify_file_path(object_key, expected.pop('path'), backup)
+        self.verify(actual['data'], expected, backup)
+        return result
+
+    def verify_file_path(self, attachment_key, file, journal):
+        url = self.get(f'/items/{attachment_key}/file/view/url')
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme != 'file' or Path(urllib.parse.unquote(parsed.path)).resolve() != Path(file).resolve():
+            raise ManagerError(f'Attachment file URL differs; inspect before retrying. Journal: {journal}')
+        return url
 
     @staticmethod
     def verify(actual, expected, journal):
         mismatch = {}
         for k, v in expected.items():
-            equal = set(actual.get(k, [])) == set(v) if k == 'collections' else actual.get(k) == v
+            if k == 'collections':
+                equal = set(actual.get(k, [])) == set(v)
+            elif k == 'tags':
+                # Zotero can sort tags and omit the default manual-tag type (0).
+                canonical = lambda tags: {(t['tag'], t.get('type', 0)) for t in tags}
+                equal = canonical(actual.get(k, [])) == canonical(v)
+            else:
+                equal = actual.get(k) == v
             if not equal:
                 mismatch[k] = {'expected': v, 'actual': actual.get(k)}
         if mismatch:
@@ -175,10 +207,7 @@ class Client:
         if data.get('linkMode') == 'linked_file' and 'path' in data:
             # Zotero may store an absolute path relative to its attachment base directory.
             expected.pop('path')
-            url = self.get(f'/items/{object_key}/file/view/url')
-            parsed = urllib.parse.urlparse(url)
-            if parsed.scheme != 'file' or Path(urllib.parse.unquote(parsed.path)).resolve() != Path(data['path']).resolve():
-                raise ManagerError(f'Created attachment file URL differs. Inspect journal: {journal}')
+            self.verify_file_path(object_key, data['path'], journal)
         self.verify(actual['data'], expected, journal)
         return {'verified': True, 'key': object_key, 'data': actual['data'], 'journal': journal}
 
@@ -195,11 +224,7 @@ class Client:
         return self.change('items', item_key, {'collections': memberships}, apply, current)
 
     def link_file(self, parent, file, title=None, apply=False):
-        file = Path(file).expanduser().resolve(strict=True)
-        if not file.is_file():
-            raise ManagerError('Attachment path must be an existing file')
-        if file.suffix.lower() != '.pdf':
-            raise ManagerError('This starter supports linked PDFs only')
+        file = pdf_path(file)
         item = self.get(f'/items/{key(parent)}')['data']
         if item.get('itemType') in ('attachment', 'note', 'annotation'):
             raise ManagerError('Choose a bibliographic parent reference')
@@ -221,6 +246,35 @@ class Client:
             result['file_url'] = url
         return result
 
+    def update_tags(self, item_key, add, remove, apply=False):
+        add = [tag_name(t) for t in add]
+        remove = [tag_name(t) for t in remove]
+        if not add and not remove:
+            raise ManagerError('Provide at least one tag to add or remove')
+        if set(add) & set(remove):
+            raise ManagerError('A tag cannot be both added and removed')
+        current = self.get(f'/items/{key(item_key)}')
+        tags = [dict(t) for t in current['data'].get('tags', []) if t['tag'] not in remove]
+        present = {t['tag'] for t in tags}
+        for name in add:
+            if name not in present:
+                tags.append({'tag': name})
+                present.add(name)
+        return self.change('items', item_key, {'tags': tags}, apply, current)
+
+    def relink_file(self, attachment_key, file, apply=False):
+        file = pdf_path(file)
+        current = self.get(f'/items/{key(attachment_key)}')
+        data = current['data']
+        if data.get('itemType') != 'attachment' or data.get('linkMode') != 'linked_file':
+            raise ManagerError('Choose an existing linked-file attachment key, not a parent or stored copy')
+        if data.get('contentType') != 'application/pdf' and not data.get('path', '').lower().endswith('.pdf'):
+            raise ManagerError('Choose an existing linked PDF attachment')
+        result = self.change('items', attachment_key, {'path': str(file)}, apply, current)
+        if apply and 'file_url' not in result:
+            result['file_url'] = self.verify_file_path(attachment_key, file, 'no change')
+        return result
+
 
 def json_object(value):
     result = json.loads(value)
@@ -239,10 +293,10 @@ def parser():
     get.add_argument('kind', choices=['items', 'collections']); get.add_argument('key', type=key)
     template = subs.add_parser('template', help='Read a new-item template')
     template.add_argument('item_type')
-    for command in ('create-item', 'edit-item', 'create-collection', 'edit-collection', 'membership', 'link-file'):
+    for command in ('create-item', 'edit-item', 'create-collection', 'edit-collection', 'membership', 'link-file', 'edit-tags', 'relink-file'):
         s = subs.add_parser(command)
         s.add_argument('--apply', action='store_true', help='Execute the write; otherwise preview only')
-        if command in ('edit-item', 'edit-collection', 'membership', 'link-file'):
+        if command in ('edit-item', 'edit-collection', 'membership', 'link-file', 'edit-tags', 'relink-file'):
             s.add_argument('key', type=key)
         if command in ('create-item', 'edit-item'):
             s.add_argument('--json', required=True, type=json_object, dest='data')
@@ -252,8 +306,13 @@ def parser():
         if command == 'membership':
             s.add_argument('--add', action='append', default=[], type=key)
             s.add_argument('--remove', action='append', default=[], type=key)
+        if command == 'edit-tags':
+            s.add_argument('--add', action='append', default=[], type=tag_name)
+            s.add_argument('--remove', action='append', default=[], type=tag_name)
         if command == 'link-file':
             s.add_argument('file', type=Path); s.add_argument('--title')
+        if command == 'relink-file':
+            s.add_argument('file', type=Path)
     return p
 
 
@@ -292,6 +351,8 @@ def run(args, client):
         if not args.add and not args.remove: raise ManagerError('Provide --add or --remove')
         return c.membership(args.key, args.add, args.remove, args.apply)
     if cmd == 'link-file': return c.link_file(args.key, args.file, args.title, args.apply)
+    if cmd == 'edit-tags': return c.update_tags(args.key, args.add, args.remove, args.apply)
+    if cmd == 'relink-file': return c.relink_file(args.key, args.file, args.apply)
 
 
 def main(argv=None):

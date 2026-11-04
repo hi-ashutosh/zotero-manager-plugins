@@ -1,4 +1,4 @@
 interface:
   display_name: "Zotero Manager"
-  short_description: "Edit references, collections, and linked PDFs"
+  short_description: "Manage references, tags, collections, and PDF links"
   default_prompt: "Use $zotero-manager to organize my Zotero library."

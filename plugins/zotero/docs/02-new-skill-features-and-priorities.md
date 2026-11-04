@@ -31,14 +31,14 @@ When time is tight, complete and verify items 1–4 first. New-reference imports
 | Priority | Desired feature | Scope and current gap |
 |---|---|---|
 | Next | Notes | Create/edit child and standalone notes. Generic item JSON may express these already; dedicated workflows and tests are still needed. |
-| Next | Tags | Add/remove/rename tags while preserving unrelated tags. Generic JSON array replacement exists; dedicated incremental tag management is missing. |
+| Next | Tags | Add/remove/rename tags while preserving unrelated tags. `edit-tags` now adds/removes names while preserving unrelated tags and automatic/manual types; offline and live tests pass. Library-wide rename is deferred. |
 | Next | Related items | Manage relationships while preserving existing links; verify relationship semantics and any reciprocal updates required. |
 | Next | Missing-metadata checks | Report missing/implausible fields with proposed corrections and sources; apply only authorized changes. |
 | Next | Bulk edits | Preview affected items, define partial-failure behavior, and journal originals. Not implemented as a bulk workflow. |
 | Next | Trash and restore | Distinguish reversible trash from permanent deletion and collection removal. No dedicated workflow yet. |
 | Later / investigate | Saved searches | Create/edit/delete searches and read results using supported routes. Not implemented. |
 | Later / investigate | Stored-file attachments | Add managed file copies using a supported upload/import workflow; distinguish from linked files. Not implemented. |
-| Later / investigate | Attachment-path repair | Detect missing paths and relink to an identified replacement; verify before/after locations. No dedicated repair workflow. |
+| Later / investigate | Attachment-path repair | Detect missing paths and relink to an identified replacement; verify before/after locations. `relink-file` now repairs a chosen existing linked PDF attachment using an explicit replacement path; offline and live tests pass. Automatic file discovery and stored-file conversion remain deferred. |
 | Later / investigate | Filename and filesystem coordination | Rename/move PDFs and update Zotero references without editing PDF contents; plan recovery for partial failure. Not implemented. |
 | Later / investigate | Duplicate detection and merging | Detection and actual Zotero merge semantics are separate features. Investigate supported merge methods and effects on notes, files, relations, and citation references before promising support. |
 | Later / investigate | Group-library item management | Generalize from the personal-library prefix and respect permissions. Group listing alone is insufficient; linked files cannot be used in groups. |
@@ -63,9 +63,9 @@ Account administration, group permissions, and broad application-settings change
 
 - Source: [zotero-manager](../skills/zotero-manager/SKILL.md).
 - Bundled plugin remains unchanged.
-- **20 offline tests pass in the fork.** They cover selected safety/preservation/error cases and local schema-template construction. This does not individually validate every new command.
+- **29 offline tests pass in the fork.** They cover selected safety/preservation/error cases and local schema-template construction. This does not individually validate every new command.
 - Earlier live read-only checks confirmed Zotero 10.0.7, create previews and the schema-based manuscript template. The standard `/api/items/new` template endpoint returned 404; the starter instead uses local field-schema routes.
-- **Core management writes were live-tested on 2026-11-04 using Zotero 10.0.7.** The final run passed 12 assertions; all disposable records/collections and the generated PDF were cleaned up. The earlier authorization timeout was followed by successful user-granted authorization. Validation covers these specific operations, not every item type or future feature.
+- **Core management writes were live-tested on 2026-11-04 using Zotero 10.0.7.** The latest run passed 21 assertions; all disposable records/collections and the generated PDF were cleaned up. The earlier authorization timeout was followed by successful user-granted authorization. Validation covers these specific operations, not every item type or future feature.
 
 ## Next work after the user authorizes resuming
 
@@ -73,4 +73,8 @@ Review the already-written implementation against the first-priority acceptance 
 
 ## Completed live test (2026-11-04)
 
-The authorized CLI/API test used no computer control. It verified the core metadata, collection, membership and linked-PDF operations, then removed its own fixtures. A missing `version: 0` create precondition was found and fixed. Reusable live harness: `tests/live_smoke.py` in the manager skill. Existing papers were untouched. Viewer opening, duplicate-reference detection, item-type conversion, notes/tags and later features remain unverified by this test.
+The authorized CLI/API test used no computer control. It verified the core metadata, collection, membership and linked-PDF operations, then removed its own fixtures. A missing `version: 0` create precondition was found and fixed. Reusable live harness: `tests/live_smoke.py` in the manager skill. Existing papers were untouched. Viewer opening, duplicate-reference detection, item-type conversion, notes and later features remain unverified by this test; incremental tags and linked-PDF relinking are now live-tested.
+
+## Tag management and PDF relinking (2026-11-04)
+
+Completed `edit-tags` and `relink-file` on `feat/zotero-manager`. Both support preview, version-checked writes, recovery snapshots and read-back verification. Current coverage: 29 offline tests and 21 live assertions. The live run removed all of its own fixtures and PDFs. Existing papers were untouched.

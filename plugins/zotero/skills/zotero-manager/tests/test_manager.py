@@ -225,6 +225,85 @@ class Tests(unittest.TestCase):
             self.c.create('items', {'itemType': 'attachment', 'linkMode': 'linked_file',
                                     'path': str(pdf)}, True)
 
+    def test_tag_changes_keep_other_tags_types_and_metadata(self):
+        self.c.item['data']['tags'] = [{'tag': 'auto', 'type': 1}, {'tag': 'remove'}, {'tag': 'keep'}]
+        result = self.c.update_tags('ABCDEFGH', ['new', 'new', 'auto'], ['remove'], True)
+        self.assertEqual(result['data']['tags'], [{'tag': 'auto', 'type': 1}, {'tag': 'keep'}, {'tag': 'new'}])
+        self.assertEqual(result['data']['title'], 'Before')
+        self.assertEqual(len(self.c.writes), 1)
+
+    def test_tag_preview_does_not_change_record(self):
+        self.c.item['data']['tags'] = [{'tag': 'keep'}]
+        result = self.c.update_tags('ABCDEFGH', ['new'], ['keep'])
+        self.assertTrue(result['dry_run'])
+        self.assertEqual(self.c.item['data']['tags'], [{'tag': 'keep'}])
+        self.assertEqual(self.c.writes, [])
+
+    def test_existing_and_absent_tag_requests_are_noops(self):
+        self.c.item['data']['tags'] = [{'tag': 'auto', 'type': 1}]
+        result = self.c.update_tags('ABCDEFGH', ['auto'], ['absent'], True)
+        self.assertFalse(result['changed'])
+        self.assertEqual(self.c.writes, [])
+
+    def test_invalid_tag_requests_fail_before_writing(self):
+        for add, remove in [([' '], []), (['same'], ['same']), ([], [])]:
+            with self.assertRaises(ManagerError):
+                self.c.update_tags('ABCDEFGH', add, remove, True)
+        self.assertEqual(self.c.writes, [])
+
+    def test_tag_verification_tolerates_order_and_default_manual_type(self):
+        Client.verify({'tags': [{'tag': 'B'}, {'tag': 'A', 'type': 1}]},
+                      {'tags': [{'tag': 'A', 'type': 1}, {'tag': 'B', 'type': 0}]}, 'journal')
+        with self.assertRaises(ManagerError):
+            Client.verify({'tags': [{'tag': 'A'}]}, {'tags': [{'tag': 'A', 'type': 1}]}, 'journal')
+
+    def linked_attachment(self, path='missing-original.pdf'):
+        self.c.item['data'].update(itemType='attachment', linkMode='linked_file',
+            contentType='application/pdf', path=path, parentItem='BBBBBBBB', title='Keep title')
+
+    def test_relink_preview_preserves_attachment_and_does_not_touch_files(self):
+        self.linked_attachment()
+        pdf = Path(self.tmp.name) / 'replacement.pdf'; pdf.write_bytes(b'PDF fixture')
+        result = self.c.relink_file('ABCDEFGH', pdf)
+        self.assertTrue(result['dry_run'])
+        self.assertEqual(self.c.item['data']['path'], 'missing-original.pdf')
+        self.assertEqual(result['changes'], {'path': str(pdf.resolve())})
+        self.assertEqual(pdf.read_bytes(), b'PDF fixture')
+        self.assertEqual(self.c.writes, [])
+
+    def test_relink_broken_path_keeps_key_parent_and_title(self):
+        self.linked_attachment()
+        pdf = Path(self.tmp.name) / 'replacement.pdf'; pdf.write_bytes(b'PDF fixture')
+        original_get = self.c.get
+        self.c.get = lambda path: pdf.resolve().as_uri() if path.endswith('/file/view/url') else original_get(path)
+        result = self.c.relink_file('ABCDEFGH', pdf, True)
+        self.assertTrue(result['verified'])
+        self.assertEqual(result['key'], 'ABCDEFGH')
+        self.assertEqual(result['data']['parentItem'], 'BBBBBBBB')
+        self.assertEqual(result['data']['title'], 'Keep title')
+        self.assertEqual(self.c.writes[0][0], 'PATCH')
+        self.assertEqual(self.c.writes[0][2], {'path': str(pdf.resolve())})
+        self.assertEqual(pdf.read_bytes(), b'PDF fixture')
+
+    def test_relink_rejects_parent_stored_copy_missing_file_and_non_pdf(self):
+        pdf = Path(self.tmp.name) / 'replacement.pdf'; pdf.touch()
+        with self.assertRaises(ManagerError): self.c.relink_file('ABCDEFGH', pdf, True)
+        self.linked_attachment()
+        self.c.item['data']['linkMode'] = 'imported_file'
+        with self.assertRaises(ManagerError): self.c.relink_file('ABCDEFGH', pdf, True)
+        with self.assertRaises(FileNotFoundError): self.c.relink_file('ABCDEFGH', pdf.with_name('absent.pdf'), True)
+        text = pdf.with_suffix('.txt'); text.touch()
+        with self.assertRaises(ManagerError): self.c.relink_file('ABCDEFGH', text, True)
+        self.assertEqual(self.c.writes, [])
+
+    def test_relink_existing_path_is_noop_but_verifies_resolved_file(self):
+        pdf = Path(self.tmp.name) / 'paper.pdf'; pdf.touch()
+        self.linked_attachment(str(pdf.resolve()))
+        original_get = self.c.get
+        self.c.get = lambda path: pdf.resolve().as_uri() if path.endswith('/file/view/url') else original_get(path)
+        self.assertFalse(self.c.relink_file('ABCDEFGH', pdf, True)['changed'])
+        self.assertEqual(self.c.writes, [])
+
 
 if __name__ == '__main__':
     unittest.main()

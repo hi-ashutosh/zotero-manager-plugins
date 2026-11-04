@@ -106,6 +106,8 @@ def main():
     passed = []
     errors = []
     pdf = directory / 'Linked test paper.pdf'
+    replacement = directory / 'Replacement paper.pdf'
+    moved_pdf = directory / 'Original moved away.pdf'
     def check(name, condition):
         if not condition: raise AssertionError(name)
         passed.append(name); print('PASS:', name, flush=True)
@@ -119,7 +121,8 @@ def main():
         check('rename preserves collection parent', renamed['data']['parentCollection'] == root)
         data = {'itemType': 'journalArticle', 'title': marker + ' Paper', 'date': '2010',
                 'creators': [{'creatorType': 'author', 'firstName': 'Test', 'lastName': 'Researcher'}],
-                'tags': [], 'collections': [root, source], 'relations': {}}
+                'tags': [{'tag': marker + ' Keep', 'type': 1}, {'tag': marker + ' Remove'}],
+                'collections': [root, source], 'relations': {}}
         item = c.create('items', data, True)['key']
         check('create structured reference', c.get(f'/items/{item}')['data']['title'] == data['title'])
         preview = c.change('items', item, {'title': marker + ' Preview only'})
@@ -134,6 +137,16 @@ def main():
         check('remove membership keeps library item', removed['data']['collections'] == [root])
         added = c.membership(item, [target], [], True)
         check('add membership', set(added['data']['collections']) == {root, target})
+        tag_preview = c.update_tags(item, [marker + ' Preview'], [])
+        check('tag preview leaves tags unchanged', tag_preview['dry_run'] and
+            all(t['tag'] != marker + ' Preview' for t in c.get(f'/items/{item}')['data']['tags']))
+        tagged = c.update_tags(item, [marker + ' Added'], [marker + ' Remove'], True)
+        tags = {t['tag']: t.get('type', 0) for t in tagged['data']['tags']}
+        check('add/remove tags preserves unrelated automatic tag', tags == {marker + ' Keep': 1, marker + ' Added': 0})
+        check('tag changes preserve metadata and membership', tagged['data']['title'] == edit['data']['title']
+            and set(tagged['data']['collections']) == {root, target})
+        no_op = c.update_tags(item, [marker + ' Added'], [marker + ' Absent'], True)
+        check('existing and absent tag requests avoid writes', no_op.get('changed') is False)
         make_pdf(pdf); original = pdf.read_bytes()
         attached = c.link_file(item, pdf, title=marker + ' Linked PDF', apply=True)
         linked_path = Path(urllib.parse.unquote(urllib.parse.urlparse(attached['file_url']).path))
@@ -141,15 +154,33 @@ def main():
         duplicate = c.link_file(item, pdf, apply=True)
         check('duplicate linked PDF is not recreated', duplicate.get('existing_attachment') == attached['key'] and not duplicate['changed'])
         check('PDF contents remain unchanged', pdf.read_bytes() == original)
+        make_pdf(replacement); replacement_bytes = replacement.read_bytes()
+        pdf.rename(moved_pdf)  # Simulate a broken link using only this run's generated file.
+        previous = c.get(f'/items/{attached["key"]}')['data']
+        relink_preview = c.relink_file(attached['key'], replacement)
+        check('relink preview leaves attachment path unchanged', relink_preview['dry_run'] and
+            c.get(f'/items/{attached["key"]}')['data']['path'] == previous['path'])
+        relinked = c.relink_file(attached['key'], replacement, True)
+        resolved = Path(urllib.parse.unquote(urllib.parse.urlparse(relinked['file_url']).path)).resolve()
+        check('repair broken PDF link using replacement file', relinked['verified'] and resolved == replacement.resolve())
+        children = c.get(f'/items/{item}/children')
+        check('relink preserves attachment key parent title and count', len(children) == 1 and
+            children[0]['key'] == attached['key'] and relinked['data']['parentItem'] == item and
+            relinked['data']['title'] == previous['title'])
+        same_attachment = c.link_file(item, replacement, apply=True)
+        check('relinked PDF is recognized as existing attachment', same_attachment.get('existing_attachment') == attached['key'])
+        check('relink leaves both PDF contents unchanged', moved_pdf.read_bytes() == original and replacement.read_bytes() == replacement_bytes)
     except Exception as e:
         errors.append(str(e)); print('TEST ERROR:', e, flush=True)
     finally:
         cleanup_errors = c.cleanup()
         # Keep the test PDF available if an attachment could not be removed.
-        if not cleanup_errors: pdf.unlink(missing_ok=True)
+        if not cleanup_errors:
+            for file in (pdf, replacement, moved_pdf): file.unlink(missing_ok=True)
         report = {'marker': marker, 'passed': passed, 'errors': errors,
                   'cleanup_errors': cleanup_errors, 'fixtures': c.fixtures,
-                  'pdf_removed': not pdf.exists(), 'report_path': str(directory / 'result.json')}
+                  'pdf_removed': all(not file.exists() for file in (pdf, replacement, moved_pdf)),
+                  'report_path': str(directory / 'result.json')}
         (directory / 'result.json').write_text(json.dumps(report, indent=2))
         print(json.dumps(report, indent=2), flush=True)
     return 1 if errors or cleanup_errors else 0

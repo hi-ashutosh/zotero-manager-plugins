@@ -1,7 +1,7 @@
 {
   "name": "zotero",
-  "version": "0.1.3-dev.1",
-  "description": "Fork of the Zotero plugin with a Zotero Manager starter for metadata, collections, and linked local PDFs.",
+  "version": "0.1.3-dev.2",
+  "description": "Fork of the Zotero plugin with Zotero Manager for metadata, collections, tags, and linked local PDFs.",
   "author": {
     "name": "hi-ashutosh (fork; original by OpenAI)",
     "url": "https://github.com/hi-ashutosh"
@@ -22,8 +22,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Zotero Manager (fork)",
-    "shortDescription": "Manage Zotero metadata, collections, and linked PDFs",
-    "longDescription": "Includes the original Zotero skill and a separate Zotero Manager starter. Management writes require Zotero 10 local authorization. Live write validation is pending.",
+    "shortDescription": "Manage Zotero metadata, tags, collections, and PDF links",
+    "longDescription": "Includes the original Zotero skill and Zotero Manager with locally verified metadata, collection, incremental tag, linked-PDF and relinking workflows. Management writes require user authorization through Zotero 10.",
     "developerName": "hi-ashutosh",
     "category": "Education & Research",
     "capabilities": [
