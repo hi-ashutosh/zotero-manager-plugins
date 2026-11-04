@@ -28,7 +28,7 @@ A final disposable-fixture run passed all 21 assertions:
 20. Recognize the relinked path as the existing attachment.
 21. Preserve the bytes of both PDFs during relinking.
 
-All three temporary collections, the temporary reference and linked attachment were deleted, and each deletion was verified by a 404 read. The original generated PDF, its moved test copy and the replacement PDF were removed. Prior failed runs were also cleaned up. Existing library records were not test targets.
+All three temporary collections, the temporary reference and linked attachment were deleted, and each deletion was verified by a 404 read. The original generated PDF (including its moved test path) and the replacement PDF were removed. Prior failed runs were also cleaned up. Existing library records were not test targets.
 
 The first live attempt exposed a real create bug: client-generated keys also require `version: 0`. The helper now includes that precondition, and an offline regression test covers it. A separate test assertion was corrected to compare resolved paths because macOS can represent the same location through `/var` and `/private/var`.
 

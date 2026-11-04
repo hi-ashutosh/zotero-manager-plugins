@@ -1,4 +1,23 @@
-# Plugins
+# Zotero Manager — personal fork
+
+This fork extends OpenAI's Zotero skill with executable library-management commands for **metadata, collections, tags, linked PDFs and PDF relinking**.
+
+**The new features live on branch `feat/zotero-manager`.** The fork's `main` branch still contains the upstream baseline.
+
+- **[Start here: installation, features and usage guide](plugins/zotero/skills/zotero-manager/README.md)**
+- [Skill instructions](plugins/zotero/skills/zotero-manager/SKILL.md)
+- [Tested behavior and limitations](plugins/zotero/skills/zotero-manager/references/validation.md)
+- [Feature plan](plugins/zotero/docs/02-new-skill-features-and-priorities.md)
+
+In Codex, use `$zotero-manager` to select the extended skill. It talks to Zotero Desktop's local API; no screenshot or computer-control permission is needed. Writes require your task authorization and Zotero's own API authorization.
+
+Current validation: **29 offline tests and 21 live assertions**, tested on macOS with Zotero 10.0.7. PDF editing/highlighting, duplicate merging, stored-file uploads and bulk management are outside the implemented scope. See the guide for exact feature coverage.
+
+This repository is a fork of [openai/plugins](https://github.com/openai/plugins), which contains many unrelated plugin examples. Our changes are focused on `plugins/zotero`; installing Zotero Manager does not require installing those other plugins. No stable release or upstream pull request has been published.
+
+## Upstream repository context
+
+### Plugins
 
 This repository contains a curated collection of Codex plugin examples.
 

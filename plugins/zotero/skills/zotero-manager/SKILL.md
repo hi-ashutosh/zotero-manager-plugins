@@ -7,6 +7,8 @@ description: Manage a personal Zotero Desktop library using Zotero 10 local APIs
 
 Run `python3 <skill-dir>/scripts/zotero_manager.py ...`. Self-contained, Python standard library only. This is a separately maintained extension of OpenAI's Zotero helper 0.1.2, maintained in https://github.com/hi-ashutosh/zotero-manager-plugins on branch `feat/zotero-manager`. It does not modify the installed bundled plugin cache. Source attribution: https://github.com/openai/plugins/tree/main/plugins/zotero (MIT).
 
+For setup, natural-language examples, the complete command guide and troubleshooting, read [the user guide](README.md). Agent-specific operating rules follow here.
+
 ## Operation
 
 - Respect the user's task authorization. Read-only discussion is not permission to modify the library. Once a particular task is authorized, complete its routine steps without asking repeatedly.
