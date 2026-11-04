@@ -10,7 +10,7 @@ Important constraints:
 
 - Use `/api/users/0/...` for the local user by default.
 - Local API reads do not require an API key.
-- The local API is read-only; write requests are not supported there.
+- Zotero 10+ supports local API writes using a user-granted local authorization key, the required Zotero-Server-ID header, and local object-version preconditions. This original helper does not implement that workflow; the sibling zotero-manager skill provides a starter implementation. See https://www.zotero.org/support/dev/web_api/v3/local_api .
 - Atom output is not supported locally.
 - Attachment file URLs and full text can expose local file paths or document text; only retrieve them when the user asks.
 

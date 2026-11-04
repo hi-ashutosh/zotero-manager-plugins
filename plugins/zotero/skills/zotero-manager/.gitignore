@@ -1,0 +1,3 @@
+# Local write credentials and recovery journals
+auth.json
+backups/
